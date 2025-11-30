@@ -62,7 +62,7 @@ export default function LandingPage() {
               <div className="relative rounded-xl overflow-hidden aspect-[16/9] bg-slate-800">
                 {/* Eğer görsel henüz yoksa bu placeholder görünür, varsa Image componenti çalışır */}
                 <Image
-                  src="/dashboard-preview.png" // Dosya adını buraya yazın
+                  src="/Images/dashboard-preview.png" // Dosya adını buraya yazın
                   alt="Aura Plan Dashboard Arayüzü"
                   fill
                   className="object-cover object-top"
