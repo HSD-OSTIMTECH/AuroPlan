@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
+import ToasterRegistry from "@/components/ui/ToasterRegistry";
 
 const nunito = Nunito({
   subsets: ["latin"],
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body
         className={`${nunito.className} antialiased bg-background text-foreground`}
       >
+        <ToasterRegistry />
         <main className="flex-1">{children}</main>
       </body>
     </html>
