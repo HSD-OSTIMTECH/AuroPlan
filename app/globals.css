@@ -1,1 +1,43 @@
 @import "tailwindcss";
+
+@theme {
+  /* --- Renk Paleti Tanımları --- */
+  
+  /* Ana Marka Renkleri (Kurumsal Mavi - Slate/Blue karışımı) */
+  --color-primary: #0f172a; /* Slate 900 - Ana başlıklar, butonlar */
+  --color-primary-hover: #1e293b; /* Slate 800 */
+  --color-primary-foreground: #ffffff; /* Primary üzerindeki yazı rengi */
+
+  /* Aksiyon / Vurgu Renkleri (Güven veren Mavi) */
+  --color-accent: #2563eb; /* Blue 600 - Linkler, aktif durumlar */
+  --color-accent-hover: #1d4ed8; /* Blue 700 */
+  --color-accent-foreground: #ffffff;
+
+  /* Arkaplan Renkleri */
+  --color-background: #ffffff; /* Saf beyaz */
+  --color-surface: #f8fafc; /* Slate 50 - Bölüm arkaplanları */
+  --color-surface-hover: #f1f5f9; /* Slate 100 */
+
+  /* Metin Renkleri */
+  --color-foreground: #0f172a; /* Slate 900 - Ana metin */
+  --color-muted: #64748b; /* Slate 500 - Açıklama metinleri */
+  --color-muted-foreground: #94a3b8; /* Slate 400 - Daha silik metinler */
+
+  /* Kenarlıklar */
+  --color-border: #e2e8f0; /* Slate 200 */
+  
+  /* Font Ailesi */
+  --font-nunito: var(--font-nunito);
+  --font-sans: var(--font-nunito); /* Varsayılan sans fontunu Nunito yap */
+}
+
+/* Genel Stil Ayarları */
+@layer base {
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply tracking-tight font-bold;
+  }
+}
