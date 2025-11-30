@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@iconify/react";
+import { signup } from "../actions"; // Action import edildi
 
 export default function SignupPage() {
   return (
@@ -11,8 +12,9 @@ export default function SignupPage() {
         </p>
       </div>
 
-      <form className="space-y-5">
-        {/* Full Name */}
+      {/* Action bağlandı */}
+      <form className="space-y-5" action={signup}>
+        {/* Full Name - Name özelliğine dikkat: "fullName" */}
         <div className="space-y-1.5">
           <label
             className="text-sm font-semibold text-foreground/80"
@@ -24,12 +26,13 @@ export default function SignupPage() {
             id="fullName"
             name="fullName"
             type="text"
+            required
             placeholder="Adınız Soyadınız"
             className="w-full px-4 py-3 bg-white border border-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-primary focus:ring-0"
           />
         </div>
 
-        {/* Email Input */}
+        {/* Email */}
         <div className="space-y-1.5">
           <label
             className="text-sm font-semibold text-foreground/80"
@@ -41,12 +44,13 @@ export default function SignupPage() {
             id="email"
             name="email"
             type="email"
+            required
             placeholder="name@mail.com"
             className="w-full px-4 py-3 bg-white border border-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-primary focus:ring-0"
           />
         </div>
 
-        {/* Password Input */}
+        {/* Password */}
         <div className="space-y-1.5">
           <label
             className="text-sm font-semibold text-foreground/80"
@@ -58,12 +62,12 @@ export default function SignupPage() {
             id="password"
             name="password"
             type="password"
+            required
             placeholder="En az 6 karakter"
             className="w-full px-4 py-3 bg-white border border-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-primary focus:ring-0"
           />
         </div>
 
-        {/* Terms */}
         <div className="text-xs text-muted leading-relaxed">
           Kayıt olarak{" "}
           <Link href="#" className="text-primary hover:underline">
@@ -76,7 +80,6 @@ export default function SignupPage() {
           'nı kabul etmiş olursunuz.
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           className="w-full py-3 bg-primary text-white font-bold rounded-lg hover:bg-primary-hover transition-colors flex justify-center items-center"
@@ -85,7 +88,7 @@ export default function SignupPage() {
         </button>
       </form>
 
-      {/* Divider */}
+      {/* ...Divider ve diğer kısımlar aynı... */}
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-border" />
@@ -95,7 +98,6 @@ export default function SignupPage() {
         </div>
       </div>
 
-      {/* Google Button */}
       <button
         type="button"
         className="w-full py-3 bg-white border border-border text-foreground font-semibold rounded-lg hover:bg-surface transition-colors flex justify-center items-center gap-2"
@@ -104,7 +106,6 @@ export default function SignupPage() {
         <span className="text-sm">Google ile kayıt ol</span>
       </button>
 
-      {/* Login Link */}
       <p className="text-center text-sm text-muted mt-6">
         Zaten hesabınız var mı?{" "}
         <Link href="/login" className="font-bold text-primary hover:underline">
