@@ -280,3 +280,44 @@ export async function addProjectMember(formData: FormData) {
 
   revalidatePath(`/dashboard/projects/${projectId}`);
 }
+
+
+export async function updateProject(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("Oturum açmanız gerekiyor.");
+
+  const projectId = formData.get("projectId") as string;
+  const name = formData.get("name") as string;
+  const description = formData.get("description") as string;
+  const status = formData.get("status") as string;
+  const priority = formData.get("priority") as string;
+  const startDate = formData.get("startDate") as string || null;
+  const dueDate = formData.get("dueDate") as string || null;
+
+  if (!projectId || !name) {
+    throw new Error("Proje ID ve İsim zorunludur.");
+  }
+
+
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      name,
+      description,
+      status,
+      priority,
+      start_date: startDate,
+      due_date: dueDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) {
+    console.error("Update Project Error:", error);
+    throw new Error("Proje güncellenemedi.");
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}

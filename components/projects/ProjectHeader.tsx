@@ -1,4 +1,5 @@
 import { Icon } from "@iconify/react";
+import EditProjectModal from "./EditProjectModal";
 
 export default function ProjectHeader({
   project,
@@ -74,10 +75,8 @@ export default function ProjectHeader({
           </div>
 
           <div className="flex gap-2">
-            <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 transition flex items-center gap-2">
-              <Icon icon="heroicons:pencil-square" />
-              Düzenle
-            </button>
+            <EditProjectModal project={project} />
+
             <button className="px-4 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition flex items-center gap-2 shadow-lg shadow-slate-900/10">
               <Icon icon="heroicons:check" />
               Tamamla
