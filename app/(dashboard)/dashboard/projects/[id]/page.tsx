@@ -1,24 +1,23 @@
 import { createClient } from "@/utils/supabase/server";
-import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 import { Icon } from "@iconify/react";
-import type { Database } from "@/types/supabase";
-import { getProjectPriorityMeta, getProjectStatusMeta } from "@/components/projects/constants";
+import Image from "next/image";
+import Link from "next/link";
 
-type ProjectRow = Database["public"]["Tables"]["projects"]["Row"] & {
-  teams?: { id: string; name: string | null; slug: string | null } | null;
-  project_milestones?: Database["public"]["Tables"]["project_milestones"]["Row"][] | null;
-  project_updates?: Database["public"]["Tables"]["project_updates"]["Row"][] | null;
-  project_documents?: Database["public"]["Tables"]["project_documents"]["Row"][] | null;
-};
+import ProjectHeader from "@/components/projects/ProjectHeader";
+import MilestonesList from "@/components/projects/MilestonesList";
+import ProjectUpdates from "@/components/projects/ProjectUpdates";
+import NewMilestoneModal from "@/components/projects/NewMilestoneModal";
+import NewUpdateModal from "@/components/projects/NewUpdateModal";
+import UploadDocumentModal from "@/components/projects/UploadDocumentModal";
+import DocumentsList from "@/components/projects/DocumentsList";
+import AddMemberModal from "@/components/projects/AddMemberModal";
 
-const dateFormatter = new Intl.DateTimeFormat("tr-TR", {
-  day: "2-digit",
-  month: "long",
-  year: "numeric",
-});
-
-export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
+export default async function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,226 +25,180 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
   if (!user) redirect("/login");
 
-  const { data, error } = await supabase
+  // DEĞİŞİKLİK 2: params'ı await ediyoruz
+  const { id } = await params;
+
+  // 1. Proje Detaylarını Çek
+  const { data: project, error } = await supabase
     .from("projects")
     .select(
       `
-        *,
-        teams ( id, name, slug ),
-        project_milestones ( * ),
-        project_updates ( * ),
-        project_documents ( * )
-      `,
+      *,
+      teams ( name, slug ),
+      project_milestones ( id, title, status, due_date, order_index ),
+      project_members ( id, role, user_id, profiles ( id, full_name, avatar_url ) ),
+      project_updates ( id, title, created_at, author_id, profiles(full_name, avatar_url) ),
+      project_documents ( id, file_name, file_type, file_size, storage_path, created_at )
+    `
     )
-    .eq("id", params.id)
+    .eq("id", id) // DEĞİŞİKLİK 3: params.id yerine id değişkeni kullanıldı
     .single();
 
-  if (error || !data) {
+  if (error || !project) {
     notFound();
   }
 
-  const project = data as ProjectRow;
-  const statusMeta = getProjectStatusMeta(project.status);
-  const priorityMeta = getProjectPriorityMeta(project.priority);
+  const { data: allTeamMembers } = await supabase
+    .from("team_members")
+    .select("user_id, profiles(id, full_name, email, avatar_url)")
+    .eq("team_id", project.team_id);
 
-  const milestones = (project.project_milestones ?? []).sort(
-    (a, b) => (a.order_index ?? 0) - (b.order_index ?? 0),
+  const existingUserIds = new Set(
+    project.project_members.map((m: any) => m.user_id)
   );
-  const updates = (project.project_updates ?? []).sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  );
-  const documents = project.project_documents ?? [];
 
-  const formatDate = (value?: string | null) =>
-    value ? dateFormatter.format(new Date(value)) : "Belirlenmedi";
+  const availableMembers =
+    allTeamMembers
+      ?.filter((tm: any) => !existingUserIds.has(tm.user_id))
+      .map((tm: any) => tm.profiles) // Sadece profil objesini al
+      .filter(Boolean) || []; // null profilleri temizle
+
+  const documents =
+    project.project_documents?.sort(
+      (a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ) || [];
+
+  // Veriyi düzenle
+  const milestones = project.project_milestones.sort(
+    (a, b) => a.order_index - b.order_index
+  );
+  const updates = project.project_updates.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const members = project.project_members;
+
+  // İlerleme hesabı
+  const completedMilestones = milestones.filter(
+    (m) => m.status === "done"
+  ).length;
+  const progress =
+    milestones.length > 0
+      ? Math.round((completedMilestones / milestones.length) * 100)
+      : 0;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/dashboard/projects" className="hover:text-primary flex items-center gap-1">
-          <Icon icon="heroicons:arrow-left" />
-          Proje listesine dön
+    <div className="space-y-8 pb-20">
+      {/* --- Breadcrumb --- */}
+      <nav className="flex items-center text-sm text-slate-500 mb-4">
+        <Link
+          href="/dashboard/projects"
+          className="hover:text-slate-900 transition-colors"
+        >
+          Projeler
         </Link>
-        <span className="text-slate-300">/</span>
-        <span>{project.name}</span>
-      </div>
+        <Icon icon="heroicons:chevron-right" className="mx-2 text-xs" />
+        <span className="font-semibold text-slate-900 truncate max-w-[200px]">
+          {project.name}
+        </span>
+      </nav>
 
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              {project.teams?.name ?? "Takım Projesi"}
-            </p>
-            <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
-            {project.description && (
-              <p className="text-sm text-slate-500 mt-2 max-w-3xl">{project.description}</p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${statusMeta.badge}`}>
-              {statusMeta.label}
-            </span>
-            <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${priorityMeta.badge}`}>
-              {priorityMeta.label}
-            </span>
-          </div>
-        </div>
+      {/* --- Header --- */}
+      <ProjectHeader project={project} progress={progress} />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600">
-          <InfoBlock label="Başlangıç" value={formatDate(project.start_date)} icon="heroicons:play" />
-          <InfoBlock label="Teslim" value={formatDate(project.due_date)} icon="heroicons:calendar" />
-          <InfoBlock
-            label="Oluşturulma"
-            value={dateFormatter.format(new Date(project.created_at))}
-            icon="heroicons:clock"
-          />
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Icon icon="heroicons:light-bulb" className="text-amber-500" />
-            <h2 className="text-lg font-bold text-slate-900">Proje Amacı</h2>
-          </div>
-          <p className="text-slate-600 text-sm">
-            {project.objective || "Bu projeye ait hedef henüz eklenmedi."}
-          </p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-          <div className="flex items-center gap-2">
-            <Icon icon="heroicons:adjustments-horizontal" className="text-blue-500" />
-            <h2 className="text-lg font-bold text-slate-900">Planlama Özeti</h2>
-          </div>
-          <ul className="space-y-2 text-slate-600 text-sm">
-            <li>• Takvim, raporlar ve görevler proje özelinde planlanacak (yakında).</li>
-            <li>• Kilometre taşları bu ekrandan yönetilecek.</li>
-            <li>• Mikro öğrenme kartları proje bazlı filtrelenecek.</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Kilometre Taşları</h2>
-            <p className="text-sm text-slate-500">
-              Teslim tarihlerini planlayın, ilerlemeyi takip edin.
-            </p>
-          </div>
-          <button className="text-sm font-semibold text-primary hover:text-primary/80 flex items-center gap-1">
-            <Icon icon="heroicons:plus-circle" />
-            Yakında
-          </button>
-        </div>
-        {milestones.length === 0 ? (
-          <p className="text-sm text-slate-500 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
-            Henüz milestone eklenmedi. Projenin ana teslimlerini burada toplayacağız.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {milestones.map((milestone) => (
-              <div
-                key={milestone.id}
-                className="border border-slate-100 rounded-2xl p-4 flex items-center justify-between"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{milestone.title}</p>
-                  {milestone.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1">{milestone.description}</p>
-                  )}
-                </div>
-                <div className="text-right text-xs text-slate-500">
-                  <p className="font-semibold">{formatDate(milestone.due_date)}</p>
-                  <p className="capitalize">{milestone.status?.replace("_", " ")}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-2">
-            <Icon icon="heroicons:chat-bubble-left-ellipsis" className="text-emerald-500" />
-            <h2 className="text-lg font-bold text-slate-900">Son Notlar</h2>
-          </div>
-          {updates.length === 0 ? (
-            <p className="text-sm text-slate-500 border border-dashed border-slate-200 rounded-2xl p-4 text-center">
-              Henüz kayıtlı stratejik not yok. Rapor ve kararlar yakında burada olacak.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {updates.slice(0, 4).map((update) => (
-                <div key={update.id} className="border border-slate-100 rounded-2xl p-4">
-                  <p className="text-xs uppercase text-slate-400 font-semibold">
-                    {update.update_type}
-                  </p>
-                  <h3 className="text-sm font-bold text-slate-900">{update.title}</h3>
-                  {update.body && (
-                    <p className="text-sm text-slate-600 line-clamp-2 mt-1">{update.body}</p>
-                  )}
-                  <p className="text-xs text-slate-400 mt-2">
-                    {dateFormatter.format(new Date(update.created_at))}
-                  </p>
-                </div>
-              ))}
+      {/* --- Main Content Grid --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* SOL KOLON (Ana Akış) */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Kilometre Taşları */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <Icon icon="heroicons:map" className="text-blue-500" />
+                Yol Haritası (Milestones)
+              </h3>
+              {/* Yeni Modal Bileşeni Buraya Geliyor */}
+              <NewMilestoneModal projectId={project.id} />
             </div>
-          )}
+            <div className="p-6">
+              <MilestonesList milestones={milestones} projectId={project.id} />
+            </div>
+          </div>
+
+          {/* Dosyalar / Dokümanlar (Placeholder) */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <Icon
+                  icon="heroicons:document-text"
+                  className="text-amber-500"
+                />
+                Dokümanlar
+              </h3>
+
+              {/* Yükleme Butonu Bileşeni */}
+              <UploadDocumentModal projectId={project.id} />
+            </div>
+
+            {/* Liste Bileşeni */}
+            <DocumentsList documents={documents} projectId={project.id} />
+          </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-2">
-            <Icon icon="heroicons:folder" className="text-slate-500" />
-            <h2 className="text-lg font-bold text-slate-900">Dokümanlar</h2>
-          </div>
-          {documents.length === 0 ? (
-            <p className="text-sm text-slate-500 border border-dashed border-slate-200 rounded-2xl p-4 text-center">
-              Supabase storage ile proje belgeleri burada tutulacak.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {documents.slice(0, 5).map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between border border-slate-100 rounded-2xl p-3 text-sm"
-                >
-                  <div>
-                    <p className="font-semibold text-slate-900">{doc.file_name}</p>
-                    <p className="text-xs text-slate-400">{doc.file_type}</p>
+        {/* SAĞ KOLON (Yan Bilgiler) */}
+        <div className="space-y-8">
+          {/* Proje Ekibi */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2 text-sm">
+              Proje Ekibi
+            </h3>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {members.map((member: any) => (
+                <div key={member.id} className="relative group">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-white shadow-sm overflow-hidden">
+                    {member.profiles?.avatar_url ? (
+                      <Image
+                        src={member.profiles.avatar_url}
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-bold">
+                        {member.profiles?.full_name?.[0] || "?"}
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs text-slate-500">
-                    {dateFormatter.format(new Date(doc.created_at))}
-                  </span>
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                    {member.profiles?.full_name}
+                  </div>
                 </div>
               ))}
+              <AddMemberModal
+                projectId={project.id}
+                availableMembers={availableMembers}
+              />
             </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
+          </div>
 
-function InfoBlock({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: string;
-}) {
-  return (
-    <div className="border border-slate-100 rounded-2xl p-4 flex items-center gap-3 bg-slate-50/50">
-      <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center">
-        <Icon icon={icon} className="text-slate-500" />
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">{label}</p>
-        <p className="text-base font-bold text-slate-900">{value}</p>
+          {/* Güncellemeler (Feed) */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 text-sm">
+                Son Güncellemeler
+              </h3>
+
+              {/* YENİ MODAL BURAYA EKLENDİ */}
+              <NewUpdateModal projectId={project.id} />
+            </div>
+            <div className="max-h-[400px] overflow-y-auto">
+              <ProjectUpdates updates={updates} projectId={project.id} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
