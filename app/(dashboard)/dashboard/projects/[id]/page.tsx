@@ -25,7 +25,6 @@ export default async function ProjectDetailPage({
 
   if (!user) redirect("/login");
 
-  // DEĞİŞİKLİK 2: params'ı await ediyoruz
   const { id } = await params;
 
   // 1. Proje Detaylarını Çek
@@ -36,47 +35,64 @@ export default async function ProjectDetailPage({
       *,
       teams ( name, slug ),
       project_milestones ( id, title, status, due_date, order_index ),
-      project_members ( id, role, user_id, profiles ( id, full_name, avatar_url ) ),
+      project_members ( id, role, user_id, profiles ( id, full_name, email, avatar_url ) ),
       project_updates ( id, title, created_at, author_id, profiles(full_name, avatar_url) ),
       project_documents ( id, file_name, file_type, file_size, storage_path, created_at )
     `
     )
-    .eq("id", id) // DEĞİŞİKLİK 3: params.id yerine id değişkeni kullanıldı
+    .eq("id", id)
     .single();
 
   if (error || !project) {
     notFound();
   }
 
-  const { data: allTeamMembers } = await supabase
-    .from("team_members")
-    .select("user_id, profiles(id, full_name, email, avatar_url)")
-    .eq("team_id", project.team_id);
-
-  const existingUserIds = new Set(
-    project.project_members.map((m: any) => m.user_id)
+  // 2. Yetki Kontrolü
+  const isOwner = project.owner_id === user.id;
+  const myMemberRecord = project.project_members.find(
+    (m: any) => m.user_id === user.id
   );
+  const myRole = myMemberRecord?.role;
+  const canManage = isOwner || myRole === "manager";
 
-  const availableMembers =
-    allTeamMembers
-      ?.filter((tm: any) => !existingUserIds.has(tm.user_id))
-      .map((tm: any) => tm.profiles) // Sadece profil objesini al
-      .filter(Boolean) || []; // null profilleri temizle
+  // 3. Müsait Takım Üyelerini Hesapla (Modal İçin)
+  let availableMembers: any[] = [];
 
+  if (project.team_id) {
+    // Takımın tüm üyelerini çek
+    const { data: allTeamMembers } = await supabase
+      .from("team_members")
+      .select("user_id, profiles(id, full_name, email, avatar_url)")
+      .eq("team_id", project.team_id);
+
+    const existingUserIds = new Set(
+      project.project_members.map((m: any) => m.user_id)
+    );
+
+    // Sadece projede olmayanları filtrele
+    availableMembers =
+      allTeamMembers
+        ?.filter((tm: any) => !existingUserIds.has(tm.user_id))
+        .map((tm: any) => tm.profiles)
+        .filter(Boolean) || [];
+  }
+
+  // 4. Verileri Düzenle
   const documents =
     project.project_documents?.sort(
       (a: any, b: any) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     ) || [];
 
-  // Veriyi düzenle
   const milestones = project.project_milestones.sort(
     (a, b) => a.order_index - b.order_index
   );
+
   const updates = project.project_updates.sort(
     (a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
+
   const members = project.project_members;
 
   // İlerleme hesabı
@@ -105,6 +121,8 @@ export default async function ProjectDetailPage({
       </nav>
 
       {/* --- Header --- */}
+      {/* EditProjectModal için canManage bilgisini geçebilirsiniz veya içeride kontrol edebilirsiniz.
+          Şimdilik prop olarak geçmiyoruz, EditProjectModal kendisi render ediliyor. */}
       <ProjectHeader project={project} progress={progress} />
 
       {/* --- Main Content Grid --- */}
@@ -118,7 +136,6 @@ export default async function ProjectDetailPage({
                 <Icon icon="heroicons:map" className="text-blue-500" />
                 Yol Haritası (Milestones)
               </h3>
-              {/* Yeni Modal Bileşeni Buraya Geliyor */}
               <NewMilestoneModal projectId={project.id} />
             </div>
             <div className="p-6">
@@ -126,7 +143,7 @@ export default async function ProjectDetailPage({
             </div>
           </div>
 
-          {/* Dosyalar / Dokümanlar (Placeholder) */}
+          {/* Dosyalar / Dokümanlar */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -136,12 +153,8 @@ export default async function ProjectDetailPage({
                 />
                 Dokümanlar
               </h3>
-
-              {/* Yükleme Butonu Bileşeni */}
               <UploadDocumentModal projectId={project.id} />
             </div>
-
-            {/* Liste Bileşeni */}
             <DocumentsList documents={documents} projectId={project.id} />
           </div>
         </div>
@@ -150,7 +163,7 @@ export default async function ProjectDetailPage({
         <div className="space-y-8">
           {/* Proje Ekibi */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2 text-sm">
+            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
               Proje Ekibi
             </h3>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -171,16 +184,19 @@ export default async function ProjectDetailPage({
                       </div>
                     )}
                   </div>
-                  {/* Tooltip */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                     {member.profiles?.full_name}
                   </div>
                 </div>
               ))}
-              <AddMemberModal
-                projectId={project.id}
-                availableMembers={availableMembers}
-              />
+
+              {/* Sadece yetkili kişiler üye ekleyebilir */}
+              {canManage && (
+                <AddMemberModal
+                  projectId={project.id}
+                  availableMembers={availableMembers}
+                />
+              )}
             </div>
           </div>
 
@@ -190,8 +206,6 @@ export default async function ProjectDetailPage({
               <h3 className="font-bold text-slate-900 text-sm">
                 Son Güncellemeler
               </h3>
-
-              {/* YENİ MODAL BURAYA EKLENDİ */}
               <NewUpdateModal projectId={project.id} />
             </div>
             <div className="max-h-[400px] overflow-y-auto">

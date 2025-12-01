@@ -12,12 +12,10 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
 
-// --- PROJE OLUŞTURMA (YENİ) ---
-
+// --- PROJE OLUŞTURMA ---
 export async function createProject(formData: FormData) {
   const supabase = await createClient();
 
-  // 1. Kullanıcı Kontrolü
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -25,7 +23,6 @@ export async function createProject(formData: FormData) {
     redirect("/login");
   }
 
-  // 2. Form Verilerini Al ve Temizle
   const teamIdStr = (formData.get("teamId") as string)?.trim();
   const teamId = teamIdStr === "personal" || !teamIdStr ? null : teamIdStr;
   const name = (formData.get("name") as string)?.trim();
@@ -37,16 +34,13 @@ export async function createProject(formData: FormData) {
   const dueDate = (formData.get("dueDate") as string) || null;
   const coverImageUrl = (formData.get("coverImageUrl") as string)?.trim();
 
-  // 3. Validasyon
   if (!name) {
     throw new Error("Proje adı zorunludur.");
   }
 
-  // 4. Benzersiz Slug Oluşturma
   const slugBase = slugify(name);
   const slug = `${slugBase}-${Date.now().toString(36).slice(-4)}`;
 
-  // 5. Veritabanına Kayıt
   const { data: project, error } = await supabase
     .from("projects")
     .insert({
@@ -58,8 +52,8 @@ export async function createProject(formData: FormData) {
       priority,
       objective: objective || null,
       description: description || null,
-      start_date: startDate, // Boşsa null gider
-      due_date: dueDate, // Boşsa null gider
+      start_date: startDate,
+      due_date: dueDate,
       cover_image_url: coverImageUrl || null,
     })
     .select()
@@ -70,17 +64,10 @@ export async function createProject(formData: FormData) {
     throw new Error("Proje oluşturulamadı. Lütfen tekrar deneyin.");
   }
 
-  // NOT: Manuel olarak project_members'a ekleme yapmıyoruz.
-  // Veritabanındaki 'handle_new_project' trigger'ı bunu otomatik yapıyor.
-
-  // 6. Yönlendirme ve Yenileme
   revalidatePath("/dashboard/projects");
-  // İsterseniz direkt yeni proje sayfasına yönlendirebilirsiniz:
-  // redirect(`/dashboard/projects/${project.id}`);
 }
 
-// --- MILESTONE (KİLOMETRE TAŞI) İŞLEMLERİ (MEVCUT) ---
-
+// --- MILESTONE İŞLEMLERİ ---
 export async function createMilestone(formData: FormData) {
   const supabase = await createClient();
 
@@ -119,7 +106,6 @@ export async function toggleMilestoneStatus(
   projectId: string
 ) {
   const supabase = await createClient();
-
   const newStatus = currentStatus === "done" ? "planned" : "done";
 
   const { error } = await supabase
@@ -132,8 +118,7 @@ export async function toggleMilestoneStatus(
   revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
-// --- GÜNCELLEME (UPDATE) İŞLEMLERİ (MEVCUT) ---
-
+// --- GÜNCELLEME (UPDATE) İŞLEMLERİ ---
 export async function createUpdate(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -143,7 +128,7 @@ export async function createUpdate(formData: FormData) {
   if (!user) throw new Error("Oturum açmanız gerekiyor.");
 
   const title = formData.get("title") as string;
-  const description = formData.get("description") as string; // Body
+  const description = formData.get("description") as string;
   const projectId = formData.get("projectId") as string;
   const type = (formData.get("type") as string) || "note";
 
@@ -163,6 +148,7 @@ export async function createUpdate(formData: FormData) {
   revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
+// --- DOSYA İŞLEMLERİ ---
 export async function uploadProjectFile(formData: FormData) {
   const supabase = await createClient();
 
@@ -176,14 +162,12 @@ export async function uploadProjectFile(formData: FormData) {
 
   if (!file || !projectId) throw new Error("Dosya seçilmedi.");
 
-  // 1. Dosya ismini temizle ve benzersiz yap
   const fileExt = file.name.split(".").pop();
   const fileName = `${Date.now()}_${Math.random()
     .toString(36)
     .substring(2)}.${fileExt}`;
-  const filePath = `${projectId}/${fileName}`; // Dosyaları proje klasörlerinde tutalım
+  const filePath = `${projectId}/${fileName}`;
 
-  // 2. Storage'a Yükle
   const { error: uploadError } = await supabase.storage
     .from("project-files")
     .upload(filePath, file);
@@ -193,11 +177,10 @@ export async function uploadProjectFile(formData: FormData) {
     throw new Error("Dosya yüklenemedi.");
   }
 
-  // 3. Veritabanına Kaydet (project_documents)
   const { error: dbError } = await supabase.from("project_documents").insert({
     project_id: projectId,
     uploader_id: user.id,
-    file_name: file.name, // Orijinal isim
+    file_name: file.name,
     storage_path: filePath,
     file_type: fileExt,
     file_size: file.size,
@@ -218,17 +201,8 @@ export async function deleteProjectFile(
 ) {
   const supabase = await createClient();
 
-  // 1. Storage'dan Sil
-  const { error: storageError } = await supabase.storage
-    .from("project-files")
-    .remove([storagePath]);
+  await supabase.storage.from("project-files").remove([storagePath]);
 
-  if (storageError) {
-    console.error("Storage Delete Error:", storageError);
-    // Storage'dan silinemese bile veritabanından silmeyi deneyebiliriz veya hata dönebiliriz.
-  }
-
-  // 2. Veritabanından Sil
   const { error: dbError } = await supabase
     .from("project_documents")
     .delete()
@@ -239,21 +213,47 @@ export async function deleteProjectFile(
   revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
+// --- ÜYE EKLEME (GÜNCELLENMİŞ) ---
 export async function addProjectMember(formData: FormData) {
   const supabase = await createClient();
-  
-  const { data: { user } } = await supabase.auth.getUser();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error("Oturum açmanız gerekiyor.");
 
   const projectId = formData.get("projectId") as string;
   const userId = formData.get("userId") as string;
-  const role = formData.get("role") as string || 'contributor';
+  const role = (formData.get("role") as string) || "contributor";
 
   if (!projectId || !userId) {
     throw new Error("Kullanıcı ve proje seçimi zorunludur.");
   }
 
-  // 1. Bu kullanıcı zaten projede mi?
+  // 1. Projenin hangi takıma ait olduğunu bul
+  const { data: project } = await supabase
+    .from("projects")
+    .select("team_id")
+    .eq("id", projectId)
+    .single();
+
+  // 2. Eğer proje bir takıma aitse, eklenen kişinin o takımda olup olmadığını kontrol et
+  if (project?.team_id) {
+    const { data: isTeamMember } = await supabase
+      .from("team_members")
+      .select("id")
+      .eq("team_id", project.team_id)
+      .eq("user_id", userId)
+      .single();
+
+    if (!isTeamMember) {
+      throw new Error(
+        "Bu kullanıcı proje takımına üye değil. Önce takıma davet edin."
+      );
+    }
+  }
+
+  // 3. Kullanıcı zaten projede mi?
   const { data: existing } = await supabase
     .from("project_members")
     .select("id")
@@ -265,14 +265,12 @@ export async function addProjectMember(formData: FormData) {
     throw new Error("Bu kullanıcı zaten projeye ekli.");
   }
 
-  // 2. Ekleme İşlemi
-  const { error } = await supabase
-    .from("project_members")
-    .insert({
-      project_id: projectId,
-      user_id: userId,
-      role: role
-    });
+  // 4. Ekleme İşlemi
+  const { error } = await supabase.from("project_members").insert({
+    project_id: projectId,
+    user_id: userId,
+    role: role,
+  });
 
   if (error) {
     console.error("Add Member Error:", error);
@@ -282,11 +280,13 @@ export async function addProjectMember(formData: FormData) {
   revalidatePath(`/dashboard/projects/${projectId}`);
 }
 
-
+// --- PROJE GÜNCELLEME ---
 export async function updateProject(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) throw new Error("Oturum açmanız gerekiyor.");
 
   const projectId = formData.get("projectId") as string;
@@ -294,13 +294,12 @@ export async function updateProject(formData: FormData) {
   const description = formData.get("description") as string;
   const status = formData.get("status") as string;
   const priority = formData.get("priority") as string;
-  const startDate = formData.get("startDate") as string || null;
-  const dueDate = formData.get("dueDate") as string || null;
+  const startDate = (formData.get("startDate") as string) || null;
+  const dueDate = (formData.get("dueDate") as string) || null;
 
   if (!projectId || !name) {
     throw new Error("Proje ID ve İsim zorunludur.");
   }
-
 
   const { error } = await supabase
     .from("projects")
