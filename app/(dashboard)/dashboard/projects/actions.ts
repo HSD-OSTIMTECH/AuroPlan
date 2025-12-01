@@ -1,0 +1,323 @@
+"use server";
+
+import { createClient } from "@/utils/supabase/server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+// Yardımcı Fonksiyon: URL dostu slug oluşturur
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
+// --- PROJE OLUŞTURMA ---
+export async function createProject(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const teamIdStr = (formData.get("teamId") as string)?.trim();
+  const teamId = teamIdStr === "personal" || !teamIdStr ? null : teamIdStr;
+  const name = (formData.get("name") as string)?.trim();
+  const status = (formData.get("status") as string) || "planning";
+  const priority = (formData.get("priority") as string) || "medium";
+  const objective = (formData.get("objective") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim();
+  const startDate = (formData.get("startDate") as string) || null;
+  const dueDate = (formData.get("dueDate") as string) || null;
+  const coverImageUrl = (formData.get("coverImageUrl") as string)?.trim();
+
+  if (!name) {
+    throw new Error("Proje adı zorunludur.");
+  }
+
+  const slugBase = slugify(name);
+  const slug = `${slugBase}-${Date.now().toString(36).slice(-4)}`;
+
+  const { data: project, error } = await supabase
+    .from("projects")
+    .insert({
+      name,
+      team_id: teamId,
+      owner_id: user.id,
+      slug,
+      status,
+      priority,
+      objective: objective || null,
+      description: description || null,
+      start_date: startDate,
+      due_date: dueDate,
+      cover_image_url: coverImageUrl || null,
+    })
+    .select()
+    .single();
+
+  if (error || !project) {
+    console.error("Create Project Error:", error);
+    throw new Error("Proje oluşturulamadı. Lütfen tekrar deneyin.");
+  }
+
+  revalidatePath("/dashboard/projects");
+}
+
+// --- MILESTONE İŞLEMLERİ ---
+export async function createMilestone(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Oturum açmanız gerekiyor.");
+
+  const title = formData.get("title") as string;
+  const dueDate = formData.get("dueDate") as string;
+  const projectId = formData.get("projectId") as string;
+
+  if (!title || !projectId) {
+    throw new Error("Başlık zorunludur.");
+  }
+
+  const { error } = await supabase.from("project_milestones").insert({
+    project_id: projectId,
+    title,
+    due_date: dueDate || null,
+    status: "planned",
+    order_index: 0,
+  });
+
+  if (error) {
+    console.error("Milestone Error:", error);
+    throw new Error("Kilometre taşı oluşturulamadı.");
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}
+
+export async function toggleMilestoneStatus(
+  milestoneId: string,
+  currentStatus: string,
+  projectId: string
+) {
+  const supabase = await createClient();
+  const newStatus = currentStatus === "done" ? "planned" : "done";
+
+  const { error } = await supabase
+    .from("project_milestones")
+    .update({ status: newStatus })
+    .eq("id", milestoneId);
+
+  if (error) throw new Error("Durum güncellenemedi.");
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}
+
+// --- GÜNCELLEME (UPDATE) İŞLEMLERİ ---
+export async function createUpdate(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Oturum açmanız gerekiyor.");
+
+  const title = formData.get("title") as string;
+  const description = formData.get("description") as string;
+  const projectId = formData.get("projectId") as string;
+  const type = (formData.get("type") as string) || "note";
+
+  const { error } = await supabase.from("project_updates").insert({
+    project_id: projectId,
+    author_id: user.id,
+    title,
+    body: description,
+    update_type: type,
+  });
+
+  if (error) {
+    console.error("Update Error:", error);
+    throw new Error("Güncelleme paylaşılamadı.");
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}
+
+// --- DOSYA İŞLEMLERİ ---
+export async function uploadProjectFile(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Oturum açmanız gerekiyor.");
+
+  const file = formData.get("file") as File;
+  const projectId = formData.get("projectId") as string;
+
+  if (!file || !projectId) throw new Error("Dosya seçilmedi.");
+
+  const fileExt = file.name.split(".").pop();
+  const fileName = `${Date.now()}_${Math.random()
+    .toString(36)
+    .substring(2)}.${fileExt}`;
+  const filePath = `${projectId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("project-files")
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error("Storage Upload Error:", uploadError);
+    throw new Error("Dosya yüklenemedi.");
+  }
+
+  const { error: dbError } = await supabase.from("project_documents").insert({
+    project_id: projectId,
+    uploader_id: user.id,
+    file_name: file.name,
+    storage_path: filePath,
+    file_type: fileExt,
+    file_size: file.size,
+  });
+
+  if (dbError) {
+    console.error("DB Document Error:", dbError);
+    throw new Error("Dosya kaydı oluşturulamadı.");
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}
+
+export async function deleteProjectFile(
+  documentId: string,
+  storagePath: string,
+  projectId: string
+) {
+  const supabase = await createClient();
+
+  await supabase.storage.from("project-files").remove([storagePath]);
+
+  const { error: dbError } = await supabase
+    .from("project_documents")
+    .delete()
+    .eq("id", documentId);
+
+  if (dbError) throw new Error("Dosya kaydı silinemedi.");
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}
+
+// --- ÜYE EKLEME (GÜNCELLENMİŞ) ---
+export async function addProjectMember(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Oturum açmanız gerekiyor.");
+
+  const projectId = formData.get("projectId") as string;
+  const userId = formData.get("userId") as string;
+  const role = (formData.get("role") as string) || "contributor";
+
+  if (!projectId || !userId) {
+    throw new Error("Kullanıcı ve proje seçimi zorunludur.");
+  }
+
+  // 1. Projenin hangi takıma ait olduğunu bul
+  const { data: project } = await supabase
+    .from("projects")
+    .select("team_id")
+    .eq("id", projectId)
+    .single();
+
+  // 2. Eğer proje bir takıma aitse, eklenen kişinin o takımda olup olmadığını kontrol et
+  if (project?.team_id) {
+    const { data: isTeamMember } = await supabase
+      .from("team_members")
+      .select("id")
+      .eq("team_id", project.team_id)
+      .eq("user_id", userId)
+      .single();
+
+    if (!isTeamMember) {
+      throw new Error(
+        "Bu kullanıcı proje takımına üye değil. Önce takıma davet edin."
+      );
+    }
+  }
+
+  // 3. Kullanıcı zaten projede mi?
+  const { data: existing } = await supabase
+    .from("project_members")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("user_id", userId)
+    .single();
+
+  if (existing) {
+    throw new Error("Bu kullanıcı zaten projeye ekli.");
+  }
+
+  // 4. Ekleme İşlemi
+  const { error } = await supabase.from("project_members").insert({
+    project_id: projectId,
+    user_id: userId,
+    role: role,
+  });
+
+  if (error) {
+    console.error("Add Member Error:", error);
+    throw new Error("Üye projeye eklenemedi.");
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}
+
+// --- PROJE GÜNCELLEME ---
+export async function updateProject(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Oturum açmanız gerekiyor.");
+
+  const projectId = formData.get("projectId") as string;
+  const name = formData.get("name") as string;
+  const description = formData.get("description") as string;
+  const status = formData.get("status") as string;
+  const priority = formData.get("priority") as string;
+  const startDate = (formData.get("startDate") as string) || null;
+  const dueDate = (formData.get("dueDate") as string) || null;
+
+  if (!projectId || !name) {
+    throw new Error("Proje ID ve İsim zorunludur.");
+  }
+
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      name,
+      description,
+      status,
+      priority,
+      start_date: startDate,
+      due_date: dueDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) {
+    console.error("Update Project Error:", error);
+    throw new Error("Proje güncellenemedi.");
+  }
+
+  revalidatePath(`/dashboard/projects/${projectId}`);
+}

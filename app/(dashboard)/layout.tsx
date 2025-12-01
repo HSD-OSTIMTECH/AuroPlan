@@ -18,16 +18,20 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Kullanıcının üye olduğu takımları çek
-  // İlişkisel sorgu: team_members -> teams
+  // 1. Profil Verisini Çek (Avatar ve İsim için)
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  // 2. Kullanıcının üye olduğu takımları çek
   const { data: memberships } = await supabase
     .from("team_members")
     .select("teams(id, name, slug)")
     .eq("user_id", user.id);
 
   // Veriyi düzleştir (Flatten)
-  // memberships dizisi şöyle döner: [{ teams: {id:..., name:...} }, ...]
-  // Bunu Sidebar'ın beklediği formata çeviriyoruz: [{id:..., name:...}, ...]
   const userTeams = memberships?.map((m: any) => m.teams).filter(Boolean) || [];
 
   return (
@@ -36,7 +40,8 @@ export default async function DashboardLayout({
       <Sidebar teams={userTeams} userEmail={user.email} />
 
       <div className="flex-1 flex flex-col md:pl-64 transition-all duration-300">
-        <Header user={user} />
+        {/* Header'a userProfile bilgisini gönderiyoruz */}
+        <Header user={user} userProfile={userProfile} />
 
         <main className="flex-1 p-6 md:p-8 overflow-x-hidden">
           <div className="max-w-7xl mx-auto">{children}</div>

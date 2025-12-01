@@ -14,9 +14,26 @@ const pageTitles: { [key: string]: string } = {
   "/dashboard/profile": "Profilim",
 };
 
-export default function Header({ user }: { user: User }) {
+// Props tipini güncelliyoruz
+interface HeaderProps {
+  user: User;
+  userProfile?: {
+    full_name?: string | null;
+    avatar_url?: string | null;
+    email?: string | null;
+  } | null;
+}
+
+export default function Header({ user, userProfile }: HeaderProps) {
   const pathname = usePathname();
-  const title = pageTitles[pathname] || "Dashboard";
+
+  // Dinamik başlık yönetimi (örn: /dashboard/projects/123 -> Proje Detayı)
+  let title = pageTitles[pathname];
+  if (!title) {
+    if (pathname.includes("/projects/")) title = "Proje Detayı";
+    else if (pathname.includes("/teams/")) title = "Takım Yönetimi";
+    else title = "Dashboard";
+  }
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-30">
@@ -51,8 +68,8 @@ export default function Header({ user }: { user: User }) {
 
         <div className="h-6 w-px bg-slate-200 mx-1"></div>
 
-        {/* Kullanıcı Menüsü */}
-        <UserMenu user={user} />
+        {/* Kullanıcı Menüsü - Profil bilgisi ile */}
+        <UserMenu user={user} userProfile={userProfile} />
       </div>
     </header>
   );

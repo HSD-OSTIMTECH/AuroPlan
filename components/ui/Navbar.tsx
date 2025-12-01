@@ -8,10 +8,21 @@ import NavbarLinks from "./NavbarLinks";
 export default async function Navbar() {
   const supabase = await createClient();
 
-  // Kullanıcıyı getir
+  // Kullanıcıyı (Auth) getir
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Profil detaylarını (Avatar, İsim) veritabanından çek
+  let userProfile = null;
+  if (user) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+    userProfile = data;
+  }
 
   return (
     <header className="fixed top-0 w-full z-50 bg-white border-b border-border h-[80px]">
@@ -37,7 +48,6 @@ export default async function Navbar() {
 
           {/* Menü - Masaüstü */}
           {user ? (
-            // --- KULLANICI GİRİŞ YAPMIŞSA BASİT MENÜ ---
             <nav className="hidden md:flex gap-6 text-sm font-bold text-muted h-full items-center">
               <Link
                 href="/dashboard"
@@ -62,18 +72,16 @@ export default async function Navbar() {
               </Link>
             </nav>
           ) : (
-            // --- ZİYARETÇİ İSE MEGA MENU ---
             <NavbarLinks />
           )}
         </div>
 
-        {/* Aksiyon Alanı (Sağ Taraf) */}
+        {/* Aksiyon Alanı */}
         <div className="flex gap-4 items-center relative z-50">
           {user ? (
-            // Kullanıcı varsa UserMenu göster
-            <UserMenu user={user} />
+            // userProfile bilgisini de prop olarak geçiyoruz
+            <UserMenu user={user} userProfile={userProfile} />
           ) : (
-            // Kullanıcı yoksa Giriş/Kayıt butonlarını göster
             <>
               <Link
                 href="/login"
