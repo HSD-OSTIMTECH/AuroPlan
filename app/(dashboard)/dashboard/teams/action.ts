@@ -46,6 +46,13 @@ export async function createTeam(formData: FormData) {
     throw new Error(`Takım oluşturulamadı: ${error.message}`);
   }
 
+  // Owner'ı team_members tablosuna ekle
+  await supabase.from("team_members").insert({
+    team_id: team.id,
+    user_id: user.id,
+    role: "owner",
+  });
+
   // 4. Üyeleri Ekle (Opsiyonel)
   if (membersRaw && membersRaw.trim().length > 0) {
     // E-postaları temizle ve ayır
