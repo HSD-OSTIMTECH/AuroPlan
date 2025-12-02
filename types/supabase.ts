@@ -369,6 +369,45 @@ export interface Database {
           Database["public"]["Tables"]["user_achievements"]["Row"]
         >;
       };
+      reports: {
+        Row: {
+          id: string;
+          scope: "personal" | "team" | "project";
+          team_id: string | null;
+          project_id: string | null;
+          uploaded_by: string;
+          title: string;
+          description: string | null;
+          file_name: string;
+          file_type: string;
+          file_size: number;
+          storage_path: string;
+          report_period: string | null;
+          tags: string[];
+          is_public: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          scope: "personal" | "team" | "project";
+          team_id?: string | null;
+          project_id?: string | null;
+          uploaded_by: string;
+          title: string;
+          description?: string | null;
+          file_name: string;
+          file_type: string;
+          file_size: number;
+          storage_path: string;
+          report_period?: string | null;
+          tags?: string[];
+          is_public?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["reports"]["Row"]>;
+      };
     };
   };
 }
@@ -384,5 +423,17 @@ export type AchievementWithProgress = Achievement & {
     progress_max: number;
     earned_at: string | null;
     xp_awarded: number;
+  } | null;
+};
+
+// Helper types for reports
+export type Report = Database["public"]["Tables"]["reports"]["Row"];
+export type ReportInsert = Database["public"]["Tables"]["reports"]["Insert"];
+
+export type ReportWithUploader = Report & {
+  profiles?: {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
   } | null;
 };

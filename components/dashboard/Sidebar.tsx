@@ -100,11 +100,6 @@ const bottomItems = [
     path: "/dashboard/settings",
     icon: "heroicons:cog-6-tooth",
   },
-  {
-    title: "Yardım & Destek",
-    path: "/dashboard/support",
-    icon: "heroicons:question-mark-circle",
-  },
 ];
 
 export default function Sidebar({ teams, userEmail }: SidebarProps) {
