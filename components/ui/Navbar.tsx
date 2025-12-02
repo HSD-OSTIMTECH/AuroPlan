@@ -47,33 +47,7 @@ export default async function Navbar() {
           </Link>
 
           {/* Menü - Masaüstü */}
-          {user ? (
-            <nav className="hidden md:flex gap-6 text-sm font-bold text-muted h-full items-center">
-              <Link
-                href="/dashboard"
-                className="hover:text-primary transition-colors flex items-center gap-1.5"
-              >
-                <Icon icon="heroicons:squares-2x2" />
-                Panom
-              </Link>
-              <Link
-                href="/dashboard/tasks"
-                className="hover:text-primary transition-colors flex items-center gap-1.5"
-              >
-                <Icon icon="heroicons:list-bullet" />
-                Görevler
-              </Link>
-              <Link
-                href="/dashboard/learn"
-                className="hover:text-primary transition-colors flex items-center gap-1.5"
-              >
-                <Icon icon="heroicons:academic-cap" />
-                Öğrenme
-              </Link>
-            </nav>
-          ) : (
-            <NavbarLinks />
-          )}
+          <NavbarLinks />
         </div>
 
         {/* Aksiyon Alanı */}
