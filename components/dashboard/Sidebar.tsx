@@ -29,13 +29,6 @@ const menuGroups = [
         icon: "heroicons:squares-2x2",
       },
       {
-        title: "Gelen Kutusu",
-        path: "/dashboard/inbox",
-        icon: "heroicons:inbox",
-        badge: "3",
-        badgeColor: "bg-blue-600 text-white",
-      },
-      {
         title: "Takvim",
         path: "/dashboard/calendar",
         icon: "heroicons:calendar-days",
