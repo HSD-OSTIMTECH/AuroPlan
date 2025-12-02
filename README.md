@@ -1,69 +1,74 @@
 # AuroPlan
 
-> Acik-kaynak kimlikli, ekip ici gorev takip ve mikro ogrenme akislari icin hazirlanmis Next.js tabanli uretkenlik platformu.
+> Açık-kaynak kimlikli, ekip içi görev takip ve mikro öğrenme akışları için hazırlanmış Next.js tabanlı üretkenlik platformu.
 
-AuroPlan; kisi veya takim tabanli projelerinizi, Kanban panolarini, kilometre taslarini ve knowledge base'i ayni panelde toplayan Supabase destekli bir gorev takip sistemidir. Kod tabani App Router mimarisi uzerine kuruldugu icin SSR ve edge senaryolarinda olceklenebilir.
+AuroPlan; kişi veya takım tabanlı projelerinizi, Kanban panolarını, kilometre taşlarını ve knowledge base'i aynı panelde toplayan Supabase destekli bir görev takip sistemidir. Kod tabanı App Router mimarisi üzerine kurulduğu için SSR ve edge senaryolarında ölçeklenebilir.
 
-## Proje Ozeti
+## Proje Özeti
 
-- `app/(site)` altinda landing page, `app/(auth)` altinda Supabase kimlik dogrulamasi ve `app/(dashboard)` altinda asil uygulama deneyimi bulunur.
-- Dashboard; gorev, proje, takim, takvim, profil ve mikro ogrenme modullerine ayrilir ve tum ekranlar Supabase veritabanindan dinamik veri ceker.
-- `DETAILED_MVP_PLAN.md` ve `DESIGN_SYSTEM.md` dokumanlari urun kararlari ile UI dilini belgeler; acik-kaynak misyonu dogrultusunda surec seffaf tutulur.
-- Repoyu forklayip kendi organizasyonunuzda barindirabilir, README'deki adimlari izleyerek dakikalar icinde local ortamda calistirabilirsiniz.
+- `app/(site)` altında landing page, `app/(auth)` altında Supabase kimlik doğrulaması ve `app/(dashboard)` altında asıl uygulama deneyimi bulunur.
+- Dashboard; görev, proje, takım, takvim, profil ve mikro öğrenme modüllerine ayrılır ve tüm ekranlar Supabase veritabanından dinamik veri çeker.
+- `DETAILED_MVP_PLAN.md` ve `DESIGN_SYSTEM.md` dokümanları ürün kararları ile UI dilini belgeler; açık-kaynak misyonu doğrultusunda süreç şeffaf tutulur.
+- Repoyu forklayıp kendi organizasyonunuzda barındırabilir, README'deki adımları izleyerek dakikalar içinde local ortamda çalıştırabilirsiniz.
 
-## One Cikan Ozellikler
+## Öne Çıkan Özellikler
 
-### Gorev Yonetimi ve Kanban
-- `app/(dashboard)/dashboard/tasks/page.tsx` Supabase'deki `tasks` tablosunu **todo / in_progress / done** durumlarina gore gruplandirarak uc kolonlu Kanban olusturur.
-- `components/tasks/NewTaskModal.tsx` istemci tarafinda formu acar, `dashboard/tasks/action.ts` icindeki Next.js server action'u ile kayit olusturur ve `revalidatePath` ile gorunumu gunceller.
-- Gorev kartlari `types/supabase.ts` icinden gelen tiplerle `priority`, `description`, `assigned_to` gibi alanlari guvende tutar.
+### Görev Yönetimi ve Kanban
 
-### Proje Alanlari
-- `app/(dashboard)/dashboard/projects/page.tsx` ayni kullaniciya ait **kisisel workspace** ve **takim workspace**'lerini sekmeli arayuzde toplar, istatistik kartlari ile toplam/aktif proje sayisini sunar.
-- `components/projects/*` dosyalari kapak gorseli, kilometre taslari, guncellemeler, dokuman yukleme ve uye davet modallarini kapsar. Dokumanlar `uploadProjectFile` server action'i uzerinden Supabase Storage'taki `project-files` bucket'ina yuklenir.
-- Supabase semasi `supabase/projects_schema.sql` dosyasinda yer alir; `projects`, `project_members`, `project_milestones`, `project_updates` ve `project_documents` tablolarini tanimlar.
+- `app/(dashboard)/dashboard/tasks/page.tsx` Supabase'deki `tasks` tablosunu **todo / in_progress / done** durumlarına göre gruplandırarak üç kolonlu Kanban oluşturur.
+- `components/tasks/NewTaskModal.tsx` istemci tarafında formu açar, `dashboard/tasks/action.ts` içindeki Next.js server action'u ile kayıt oluşturur ve `revalidatePath` ile görünümü günceller.
+- Görev kartları `types/supabase.ts` içinden gelen tiplerle `priority`, `description`, `assigned_to` gibi alanları güvende tutar.
 
-### Takim Operasyonlari
-- `app/(dashboard)/layout.tsx` aktif kullanicinin takimini cekip `components/dashboard/Sidebar` bilesenine aktarir. Sidebar workspace secimi, pro rozetleri ve alt menuyu yonetir.
-- `app/(dashboard)/dashboard/team` ile `components/teams/CreateTeamForm.tsx` takim olusturur ve `team_members` tablosu uzerinden owner/admin/member rolleri atar.
+### Proje Alanları
 
-### Takvim ve Zaman Cizelgesi
-- `components/calendar/CalendarView.tsx` ve `TimelineView.tsx` gorev, proje ve etkinlikleri `date-fns` yardimiyla aylik gorunumde hesaplar ve renk kodlariyla listeler.
-- `EventDetailsModal` gun icindeki ogelerin ayrintilarini acan tiklanabilir kartlar saglar; `CalendarItem` tipi metadata sayesinde hangi takima ya da projeye ait oldugunu bilir.
+- `app/(dashboard)/dashboard/projects/page.tsx` aynı kullanıcıya ait **kişisel workspace** ve **takım workspace**'lerini sekmeli arayüzde toplar, istatistik kartları ile toplam/aktif proje sayısını sunar.
+- `components/projects/*` dosyaları kapak görseli, kilometre taşları, güncellemeler, doküman yükleme ve üye davet modallarını kapsar. Dokümanlar `uploadProjectFile` server action'ı üzerinden Supabase Storage'taki `project-files` bucket'ına yüklenir.
+- Supabase şeması `supabase/projects_schema.sql` dosyasında yer alır; `projects`, `project_members`, `project_milestones`, `project_updates` ve `project_documents` tablolarını tanımlar.
 
-### Mikro Ogrenme Merkezi
-- `app/(dashboard)/dashboard/learn/page.tsx` XP tabanli gamification karti, takim-ozel ve herkese acik icerik sekmeleri ile `micro_learnings` tablosunu kullanir.
-- `LearningCard`, `UploadForm` ve `CompleteButton` bilesenleri markdown/PDF icerikleri gosterip `user_progress` tablosu ile tamamlama durumlarini takip eder.
+### Takım Operasyonları
+
+- `app/(dashboard)/layout.tsx` aktif kullanıcının takımını çekip `components/dashboard/Sidebar` bileşenine aktarır. Sidebar workspace seçimi, pro rozetleri ve alt menüyü yönetir.
+- `app/(dashboard)/dashboard/team` ile `components/teams/CreateTeamForm.tsx` takım oluşturur ve `team_members` tablosu üzerinden owner/admin/member rolleri atar.
+
+### Takvim ve Zaman Çizelgesi
+
+- `components/calendar/CalendarView.tsx` ve `TimelineView.tsx` görev, proje ve etkinlikleri `date-fns` yardımıyla aylık görünümde hesaplar ve renk kodlarıyla listeler.
+- `EventDetailsModal` gün içindeki öğelerin ayrıntılarını açan tıklanabilir kartlar sağlar; `CalendarItem` tipi metadata sayesinde hangi takıma ya da projeye ait olduğunu bilir.
+
+### Mikro Öğrenme Merkezi
+
+- `app/(dashboard)/dashboard/learn/page.tsx` XP tabanlı gamification kartı, takım-özel ve herkese açık içerik sekmeleri ile `micro_learnings` tablosunu kullanır.
+- `LearningCard`, `UploadForm` ve `CompleteButton` bileşenleri markdown/PDF içerikleri gösterip `user_progress` tablosu ile tamamlama durumlarını takip eder.
 
 ## Teknik Mimari
 
-- **Cerceve:** Next.js 16 (App Router) + React 19 + TypeScript 5.
-- **Stil ve UI:** Tailwind CSS 4, `clsx`, `tailwind-merge`, Iconify ve `components/ui`, `components/dashboard`, `components/projects` gibi ozel bilesen setleri.
-- **Veri Katmani:** Supabase (PostgreSQL, Auth, Storage). `utils/supabase/server.ts` cookie paylasimi ile SSR client olusturur, `utils/supabase/client.ts` tarayici tarafini destekler.
-- **Server Actions:** Gorev, proje, ogrenme ve takim modulleri `"use server"` action'lari ile form submit akisini yonetir; `revalidatePath` ve `redirect` kullanarak deneyimi taze tutar.
-- **Middleware:** `middleware.ts` korunmus dashboard rotalarina girmeden Supabase oturumunu dogrular.
-- **Tip Guvenligi:** `types/supabase.ts` ve `types/calendar.ts` veri modellerini TypeScript ile belgeler, sorgularin tamamini tur guvenli yapar.
+- **Çerçeve:** Next.js 16 (App Router) + React 19 + TypeScript 5.
+- **Stil ve UI:** Tailwind CSS 4, `clsx`, `tailwind-merge`, Iconify ve `components/ui`, `components/dashboard`, `components/projects` gibi özel bileşen setleri.
+- **Veri Katmanı:** Supabase (PostgreSQL, Auth, Storage). `utils/supabase/server.ts` cookie paylaşımı ile SSR client oluşturur, `utils/supabase/client.ts` tarayıcı tarafını destekler.
+- **Server Actions:** Görev, proje, öğrenme ve takım modülleri `"use server"` action'ları ile form submit akışını yönetir; `revalidatePath` ve `redirect` kullanarak deneyimi taze tutar.
+- **Middleware:** `middleware.ts` korunmuş dashboard rotalarına girmeden Supabase oturumunu doğrular.
+- **Tip Güvenliği:** `types/supabase.ts` ve `types/calendar.ts` veri modellerini TypeScript ile belgeler, sorguların tamamını tür güvenli yapar.
 
-## Veri Modeli Ozeti
+## Veri Modeli Özeti
 
-| Tablo | Amac |
-| --- | --- |
-| `profiles` | Kullanici profil alanlari, avatar, XP, level. |
-| `teams` / `team_members` | Workspace'ler ve rol bazli uyelikler. |
-| `tasks` | Durum, oncelik, gorev sahibi alanlariyla kisi veya takim gorevleri. |
-| `projects` | Temel proje bilgileri, tarih araligi, durum/oncelik ve opsiyonel metadata. |
-| `project_members`, `project_milestones`, `project_updates`, `project_documents` | Proje ici roller, kilometre taslari, kronolojik guncellemeler ve dosya kayitlari. |
-| `micro_learnings`, `user_progress` | Mikro ogrenme kartlari ve kullanici tamamlama kayitlari (XP hesaplamasi icin). |
+| Tablo                                                                           | Amaç                                                                              |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `profiles`                                                                      | Kullanıcı profil alanları, avatar, XP, level.                                     |
+| `teams` / `team_members`                                                        | Workspace'ler ve rol bazlı üyelikler.                                             |
+| `tasks`                                                                         | Durum, öncelik, görev sahibi alanlarıyla kişi veya takım görevleri.               |
+| `projects`                                                                      | Temel proje bilgileri, tarih aralığı, durum/öncelik ve opsiyonel metadata.        |
+| `project_members`, `project_milestones`, `project_updates`, `project_documents` | Proje içi roller, kilometre taşları, kronolojik güncellemeler ve dosya kayıtları. |
+| `micro_learnings`, `user_progress`                                              | Mikro öğrenme kartları ve kullanıcı tamamlama kayıtları (XP hesaplaması için).    |
 
-Tum tablolar Row Level Security aktif olacak sekilde tasarlanmistir; detaylar icin `supabase/projects_schema.sql` dosyasina bakabilirsiniz.
+Tüm tablolar Row Level Security aktif olacak şekilde tasarlanmıştır; detaylar için `supabase/projects_schema.sql` dosyasına bakabilirsiniz.
 
-## Dizin Ozet
+## Dizin Özeti
 
 ```
 app/
   (site)/            -> Landing page
   (auth)/            -> Login & Signup + server actions
-  (dashboard)/       -> Dashboard layout ve tum moduller
+  (dashboard)/       -> Dashboard layout ve tüm modüller
 components/
   dashboard/, tasks/, projects/, calendar/, learn/ ...
 supabase/
@@ -71,41 +76,41 @@ supabase/
 types/
   supabase.ts, calendar.ts
 utils/
-  supabase/ (server & client yardimcilari)
+  supabase/ (server & client yardımcıları)
 public/
-  Images/ ve Logos/ altinda tanitim varliklari
+  Images/ ve Logos/ altında tanıtım varlıkları
 ```
 
-## Gelistirme Ortami
+## Geliştirme Ortamı
 
-1. **Bagimliliklari kurun**
+1. **Bağımlılıkları kurun**
    ```bash
    pnpm install
    ```
-2. **Ortam degiskenlerini hazirlayin**  
-   `.env.example` dosyasini `.env.local` olarak kopyalayip asagidaki anahtarlari doldurun:
+2. **Ortam değişkenlerini hazırlayın**  
+   `.env.example` dosyasını `.env.local` olarak kopyalayıp aşağıdaki anahtarları doldurun:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (opsiyonel ama storage islemlerinde faydali)
-3. **Supabase semasini uygulayin**  
-   `supabase/projects_schema.sql` icerigini Supabase SQL Editor'de calistirin, `project-files` bucket'ini olusturun.
-4. **Gelisim sunucusunu baslatin**
+   - `SUPABASE_SERVICE_ROLE_KEY` (opsiyonel ama storage işlemlerinde faydalı)
+3. **Supabase şemasını uygulayın**  
+   `supabase/projects_schema.sql` içeriğini Supabase SQL Editor'de çalıştırın, `project-files` bucket'ını oluşturun.
+4. **Geliştirme sunucusunu başlatın**
    ```bash
    pnpm dev
    # http://localhost:3000 -> landing
-   # http://localhost:3000/dashboard -> yetkili kullanici paneli
+   # http://localhost:3000/dashboard -> yetkili kullanıcı paneli
    ```
-5. **Kod kalitesini dogrulayin**
+5. **Kod kalitesini doğrulayın**
    ```bash
    pnpm lint
    ```
 
-## Katki ve Yol Haritasi
+## Katkı ve Yol Haritası
 
-AuroPlan acik-kaynak bir gorev takip ve bilgi paylasim platformudur. Yeni ozellikler, hata duzeltmeleri veya Supabase semasi iyilestirmeleri icin pull request gonderebilirsiniz. Baslamadan once:
+AuroPlan açık-kaynak bir görev takip ve bilgi paylaşım platformudur. Yeni özellikler, hata düzeltmeleri veya Supabase şeması iyileştirmeleri için pull request gönderebilirsiniz. Başlamadan önce:
 
-- `DESIGN_SYSTEM.md` ve `DETAILED_MVP_PLAN.md` dosyalarindaki UX ve yol haritasi notlarini inceleyin.
-- Veri modelinde yaptiginiz degisiklikleri `supabase/` altindaki SQL dosyalarina mutlaka isleyin.
-- Tartismalari depo uzerinden yurutup acik-kaynak topluluguna geribildirim verin.
+- `DESIGN_SYSTEM.md` ve `DETAILED_MVP_PLAN.md` dosyalarındaki UX ve yol haritası notlarını inceleyin.
+- Veri modelinde yaptığınız değişiklikleri `supabase/` altındaki SQL dosyalarına mutlaka işleyin.
+- Tartışmaları depo üzerinden yürütüp açık-kaynak topluluğuna geribildirim verin.
 
-> AuroPlan; ekiplerin calismalarini seffaf, takip edilebilir ve ogrenme odakli sekilde ilerletebilmesi icin tasarlandi. Kendi senaryonuza gore uyarlayin, geribildiriminizi paylasin ve acik-kaynak gorev takip sisteminin buyumesine destek olun!
+> AuroPlan; ekiplerin çalışmalarını şeffaf, takip edilebilir ve öğrenme odaklı şekilde ilerletebilmesi için tasarlandı. Kendi senaryonuza göre uyarlayın, geribildiriminizi paylaşın ve açık-kaynak görev takip sisteminin büyümesine destek olun!
